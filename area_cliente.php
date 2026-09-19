@@ -2,6 +2,15 @@
 //Inicia a sessão
 session_start();
 
+//Verifica se o usuário clicou no botão SAIR
+if(isset($_GET["sair"])) {
+    //Detrói a sessão do usuário
+    session_destroy();
+    //Volta para a página de login
+    header("Location: index.php");
+    exit;
+}
+
 //Verifica se existe um usuário logado
 if(!isset($_SESSION["usuario"]) ){
     //Se não existe usuários na sessão, volta para a página de login.
@@ -137,6 +146,12 @@ $senha = $dadosUsuario["senha"];
                 <br>
                 <form method="get">
                     <button type="submit" name="editar" value="1">EDITAR INFORMAÇÕES</button>
+                </form>
+                
+                <!--Botão Sair-->
+                <br>
+                <form method="get">
+                    <button type="submit" name="sair" value="1">SAIR</button>
                 </form>
             </div>
 
