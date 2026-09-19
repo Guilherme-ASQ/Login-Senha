@@ -14,12 +14,12 @@
             <form method="post" id="form-cadastro">
                 <div class="input-group">
                     <label for="novoUsuario">Novo Usuário:</label>
-                    <input type="text" id="novoUsuario" placeholder="Digite um usuario" required>
+                    <input type="text" name="novoUsuario" id="novoUsuario" placeholder="Digite um usuario" required>
                 </div>
 
                 <div class="input-group">
                     <label for="novaSenha">Nova Senha:</label>
-                    <input type="password" id="novaSenha" placeholder="Digite uma senha" required>
+                    <input type="password" name="novaSenha" id="novaSenha" placeholder="Digite uma senha" required>
                 </div>
 
                 <button type="submit">CADASTRAR</button>
