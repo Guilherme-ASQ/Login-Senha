@@ -42,7 +42,7 @@
                 //Conexão com o site ao PostgreeSQL
                 $conexao = pg_connect($databaseUrl);
 
-                pq_query_params(
+                pg_query_params(
                     $conexao,
                     "INSERT INTO usuarios (nome, senha) VALUES ($1, $2)",
                     array($novoUsuario, $novaSenha)
