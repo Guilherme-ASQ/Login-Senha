@@ -35,6 +35,21 @@
                 //Recebe as informações do Banco de Dados e salva no Banco.
                 $novoUsuario = $_POST["novoUsuario"];
                 $novaSenha = $_POST["novaSenha"];
+
+                //Obtem a conexao com o banco de dados no render
+                $databaseUrl = getenv("DATABASE_URL");
+
+                //Conexão com o site ao PostgreeSQL
+                $conexao = pg_connect($databaseUrl);
+
+                pq_query_params(
+                    $conexao,
+                    "INSERT INTO usuarios (nome, senha) VALUES ($1, $2)",
+                    array($novoUsuario, $novaSenha)
+                );
+
+                //Mostra a confirmação
+                echo "Cadastro realizado com sucesso!";
             }
        ?>
     </body>
