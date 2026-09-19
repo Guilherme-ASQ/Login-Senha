@@ -2,7 +2,7 @@
 <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-widht, initial-scale=1.0">
+        <!--<meta name="viewport" content="width=device-widht, initial-scale=1.0">-->
         <title>LOGIN e SENHA - Conexao BANCO</title>
         <link rel="stylesheet" href="style.css">
     </head>
@@ -11,7 +11,7 @@
        <div>
             <h1>CADASTRAR Usuario</h1>
             <!--Formulário-->
-            <form id="form-cadastro">
+            <form method="post" id="form-cadastro">
                 <div class="input-group">
                     <label for="novoUsuario">Novo Usuário:</label>
                     <input type="text" id="novoUsuario" placeholder="Digite um usuario" required>
