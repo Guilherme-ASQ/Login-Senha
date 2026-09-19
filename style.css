@@ -65,3 +65,50 @@ hr {
     font-weight: bold;
     min-height: 20px;
 }
+
+/*CSS da Tabela que aparece quando vc vai editar as informações do usuário*/
+/*Tabela inteira*/
+.tabela-usuario {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgb(0 0 0 / 0.1);
+}
+
+/*Cabeçalho da tabela*/
+.tabela-usuario th {
+    background-color: #007bff;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+}
+
+/*Células da tabela*/
+.tabela-usuario td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    color: #555;
+    font-size: 15px;
+}
+
+/*Primeira coluna da tabela*/
+.tabela-usuario td:first-child {
+    font-weight: bold;
+    color: #333;
+    width: 30%;
+}
+
+/*Efeito ao passar o mouse sobre uma linha*/
+.tabela-usuario tr:hover {
+    background-color: #f1f7ff;
+}
+
+/*Remove a borda inferiro da última linha*/
+.tabela-usuario tr:last-child td {
+    border-bottom: none;
+}
