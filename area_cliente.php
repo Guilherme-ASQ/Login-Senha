@@ -105,7 +105,7 @@ $senha = $dadosUsuario["senha"];
             <h1>Área do Cliente</h1>
 
             <div>
-                <table border="1">
+                <table class="tabela-usuario">
                     <tr>
                         <th>Informação</th>
                         <th>Dados</th>
