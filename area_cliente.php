@@ -33,10 +33,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
     //Pega os novos dados enviados pelo formulários
     $novoNome = $_POST["nome"];
     $novoEmail = $_POST["email"];
-    $novoSenha = $_POST["senha"];
+    $novaSenha = $_POST["senha"];
 
     //Se a senha estiver vazia, mantém a senha antiga.
-    if($novoSenha == "") {
+    if($novaSenha == "") {
         $resultado = pg_query_params(
             $conexao,
             "UPDATE usuarios SET nome = $1, email = $2 WHERE nome = $3 AND tipo_usuario = 'CLIENTE' ",
