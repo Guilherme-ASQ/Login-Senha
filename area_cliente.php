@@ -47,7 +47,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
         $resultado = pg_query_params(
             $conexao,
             "UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE nome = $4 AND tipo_usuario = 'CLIENTE'",
-            array($novoNome, $novoEmail, $novoEmail, $usuarioLogado)
+            array($novoNome, $novoEmail, $novaSenha, $usuarioLogado)
         );
     }
 
@@ -56,11 +56,14 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
         //Atualiza o nome armazenado na sessão.
         $_SESSION["usuario"] = $novoNome;
 
+        header("Location: area_cliente.php");
+        exit;
+
         //Mostra a mensagem de sucesso
-        echo "<p>Informações atuzalizadas com sucesso!</p>";
+        //echo "<p>Informações atuzalizadas com sucesso!</p>";
 
         //Atualiza  variável usada posteriormente
-        $usuarioLogado = $novoNome;
+        //$usuarioLogado = $novoNome;
     }else{
         echo "<p>Erro ao atualizar as informações.</p>";
     }
