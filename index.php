@@ -1,5 +1,82 @@
 <?php
     session_start();
+    if($_SERVER["REQUEST_METHOD"] == "POST") {
+        //Pega a url do banco de dados
+        $databaseUrl = getenv("DATABASE_URL");
+        $conexao = pg_connect($databaseUrl);
+
+        //Verifica se a conexão deu certo.
+        if(!$conexao) {
+            die("Erro ao conectar ao banco de dados.");
+        }
+
+        //Formulário de Cadastro para cadastrar novos usuários.
+        if(isset($_POST["novoUsuario"]) && isset($_POST["novaSenha"]) && isset($_POST["novoEmail"])) {
+        //Pega os dados digitados.
+        $novoUsuario = $_POST["novoUsuario"];
+        $novaSenha = $_POST["novaSenha"];
+        $novoEmail = $_POST["novoEmail"];
+        //Vou fazer todos os cadastros dos novos usuários com o tipo "CLIENTE", pq tecnicamente terão poucos clientes do tipo "ADMINISTRADOR". Caso eu precise cadastrar um novo administrador, eu mudo no banco de dados. Fazer isso não é o mais adequado, mas é como eu vou fazer.
+        $tipoUsuario = "CLIENTE";
+
+        //Inserir os dados no Banco de Dados
+        $resultado = pg_query_params(
+            $conexao,
+            "INSERT INTO usuarios (nome, senha, email, tipo_usuario) VALUES ($1, $2, $3,$4)",
+            array($novoUsuario, $novaSenha, $novoEmail, $tipoUsuario)
+        );
+
+        //Verifica se o cadastro funcionou.
+        if($resultado) {
+            echo "<p>Cadastro realizado com sucesso!</p>";
+        }else {
+            echo "<p>Erro ao realizar o cadastro.</p>";
+            }
+        }
+        //Formulário de Login
+        elseif(isset($_POST["usuario"]) && isset($_POST["senha"]) ) {
+        //Pega o usuário digitado
+        $usuario = $_POST["usuario"];
+        //Pega a senha digitada
+        $senha = $_POST["senha"];
+
+        //Procura se o usuário existe dentro do banco de dados.
+        $resultado = pg_query_params(
+            $conexao,
+            "SELECT nome, senha, email, tipo_usuario FROM usuarios WHERE nome = $1",
+            array($usuario)
+        );
+
+        //Verifica se encontrou o usuario
+        if($resultado && pg_num_rows($resultado) > 0 ) {
+            //Pega os dados encontrados.
+            $dadosUsuario = pg_fetch_assoc($resultado);
+
+            //Compara a senha digitada com a senha armazenada
+            if($senha === $dadosUsuario["senha"] ) {
+                //Verifica o tipo do usuário
+                if($dadosUsuario["tipo_usuario"] === "CLIENTE" ) {
+                    //Guarda o nome do usuario na sessão.
+                    //A area_cliente.php usará essa informação para descobrir qual usuário está logado.
+                    $_SESSION["usuario"] = $dadosUsuario["nome"];
+                    //Guarda também o tipo do usuário
+                    $_SESSION["tipo_usuario"] = $dadosUsuario["tipo_usuario"];
+                    //Redireciona para a área do cliente
+                    header("Location: area_cliente.php");
+
+                    //Encerra o código para impedir que o restante da página seja executada.
+                    exit;
+                }elseif($dadosUsuario["tipo_usuario"] === "ADMINISTRADOR" ) {
+                    echo "<p>Login de Administrador realizado com sucesso. Área administrativa ainda não criada.</p>";
+                }else{
+                    echo "<p>Tipo de Usuário inválido.</p>";
+                    }
+                }else{
+                    echo "<p>Usuario ou Senha incorretos.</p>";
+                    }
+            }
+        }
+    }
 ?>
 
 <!DOCTYPE html>
@@ -59,84 +136,5 @@
        </div>
 
        <!--Código PHP-->
-       <?php
-            if($_SERVER["REQUEST_METHOD"] == "POST") {
-                //Pega a url do banco de dados
-                $databaseUrl = getenv("DATABASE_URL");
-                $conexao = pg_connect($databaseUrl);
-
-                //Verifica se a conexão deu certo.
-                if(!$conexao) {
-                    die("Erro ao conectar ao banco de dados.");
-                }
-
-                //Formulário de Cadastro para cadastrar novos usuários.
-                if(isset($_POST["novoUsuario"]) && isset($_POST["novaSenha"]) && isset($_POST["novoEmail"])) {
-                    //Pega os dados digitados.
-                    $novoUsuario = $_POST["novoUsuario"];
-                    $novaSenha = $_POST["novaSenha"];
-                    $novoEmail = $_POST["novoEmail"];
-                    //Vou fazer todos os cadastros dos novos usuários com o tipo "CLIENTE", pq tecnicamente terão poucos clientes do tipo "ADMINISTRADOR". Caso eu precise cadastrar um novo administrador, eu mudo no banco de dados. Fazer isso não é o mais adequado, mas é como eu vou fazer.
-                    $tipoUsuario = "CLIENTE";
-
-                    //Inserir os dados no Banco de Dados
-                    $resultado = pg_query_params(
-                        $conexao,
-                        "INSERT INTO usuarios (nome, senha, email, tipo_usuario) VALUES ($1, $2, $3,$4)",
-                        array($novoUsuario, $novaSenha, $novoEmail, $tipoUsuario)
-                    );
-
-                    //Verifica se o cadastro funcionou.
-                    if($resultado) {
-                        echo "<p>Cadastro realizado com sucesso!</p>";
-                    }else {
-                        echo "<p>Erro ao realizar o cadastro.</p>";
-                    }
-                }
-                //Formulário de Login
-                elseif(isset($_POST["usuario"]) && isset($_POST["senha"]) ) {
-                    //Pega o usuário digitado
-                    $usuario = $_POST["usuario"];
-                    //Pega a senha digitada
-                    $senha = $_POST["senha"];
-
-                    //Procura se o usuário existe dentro do banco de dados.
-                    $resultado = pg_query_params(
-                        $conexao,
-                        "SELECT nome, senha, email, tipo_usuario FROM usuarios WHERE nome = $1",
-                        array($usuario)
-                    );
-
-                    //Verifica se encontrou o usuario
-                    if($resultado && pg_num_rows($resultado) > 0 ) {
-                        //Pega os dados encontrados.
-                        $dadosUsuario = pg_fetch_assoc($resultado);
-
-                        //Compara a senha digitada com a senha armazenada
-                        if($senha === $dadosUsuario["senha"] ) {
-                            //Verifica o tipo do usuário
-                            if($dadosUsuario["tipo_usuario"] === "CLIENTE" ) {
-                                //Guarda o nome do usuario na sessão.
-                                //A area_cliente.php usará essa informação para descobrir qual usuário está logado.
-                                $_SESSION["usuario"] = $dadosUsuario["nome"];
-                                //Guarda também o tipo do usuário
-                                $_SESSION["tipo_usuario"] = $dadosUsuario["tipo_usuario"];
-                                //Redireciona para a área do cliente
-                                header("Location: area_cliente.php");
-
-                                //Encerra o código para impedir que o restante da página seja executada.
-                                exit;
-                            }elseif($dadosUsuario["tipo_usuario"] === "ADMINISTRADOR" ) {
-                                echo "<p>Login de Administrador realizado com sucesso. Área administrativa ainda não criada.</p>";
-                            }else{
-                                echo "<p>Tipo de Usuário inválido.</p>";
-                            }
-                        }else{
-                            echo "<p>Usuario ou Senha incorretos.</p>";
-                        }
-                    }
-                }
-            }
-       ?>
     </body>
 </html>
