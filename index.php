@@ -34,17 +34,21 @@
             }
         }
         //Formulário de Login
-        elseif(isset($_POST["usuario"]) && isset($_POST["senha"]) ) {
+        elseif(isset($_POST["email"]) && isset($_POST["senha"]) ) {
         //Pega o usuário digitado
-        $usuario = $_POST["usuario"];
+        //$usuario = $_POST["usuario"];
+        
+        //Pega o email, pq agora é o email que precisa pra fazer login.
+        $email = $_POST["email"];
         //Pega a senha digitada
         $senha = $_POST["senha"];
 
         //Procura se o usuário existe dentro do banco de dados.
+        //Agora procura se o usuário existe com base no email
         $resultado = pg_query_params(
             $conexao,
-            "SELECT nome, senha, email, tipo_usuario FROM usuarios WHERE nome = $1",
-            array($usuario)
+            "SELECT nome, senha, email, tipo_usuario FROM usuarios WHERE email = $1",
+            array($email)
         );
 
         //Verifica se encontrou o usuario
@@ -72,10 +76,10 @@
                     echo "<p>Tipo de Usuário inválido.</p>";
                     }
                 }else{
-                    echo "<p>Usuario ou Senha incorretos.</p>";
+                    echo "<p>Email ou Senha incorretos.</p>";
                     }
             }
-        }
+        }else{echo "<p>Email ou Senha incorretos.</p>";}
     }
 ?>
 
@@ -94,8 +98,8 @@
             <!--Formulário para LOGIN-->
             <form method="post" id="form-login">
                 <div class="input-group">
-                    <label for="usuario">Usuário:</label>
-                    <input type="text" name="usuario" id="usuario" placeholder="Digite seu usuario" required>
+                    <label for="email">Email para Login:</label>
+                    <input type="email" name="email" id="email" placeholder="Digite seu email" required>
                 </div>
 
                 <div class="input-group">
