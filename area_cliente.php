@@ -180,7 +180,7 @@ Portanto, cada cliente cerá somente os próprios serviços.
 */
 $resultadoServicos = pg_query_params(
     $conexao,
-    "SELECT id_servicos, descricao, status FROM servicos WHERE id_cliente = $1 ORDER BY id_servicos DESC",
+    "SELECT id_servicos, descricao, status FROM servicos WHERE id_usuario = $1 ORDER BY id_servicos DESC",
     array($idUsuario)
 );
 
