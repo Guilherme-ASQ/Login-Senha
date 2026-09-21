@@ -6,10 +6,12 @@ body {
 }
 
 .container {
-    max-width: 500px;
-    margin: auto;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
     background: white;
-    padding: 25px;
+    padding: 30px;
+    box-sizing: border-box;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
@@ -29,13 +31,17 @@ h1, h2 {
     color: #666;
 }
 
-.input-group input {
+.input-group input, .input-group textarea {
     width: 100%;
     padding: 10px;
     box-sizing: border-box;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 15px;
+}
+
+.input-group textarea {
+    resize: vertical;
 }
 
 button {
@@ -60,12 +66,6 @@ hr {
     border-top: 1px solid #ddd;
 }
 
-#mensagem, #mensagem-cadastro {
-    text-align: center;
-    font-weight: bold;
-    min-height: 20px;
-}
-
 /*CSS da Tabela que aparece quando vc vai editar as informações do usuário*/
 /*Tabela inteira*/
 .tabela-usuario {
@@ -83,14 +83,14 @@ hr {
 .tabela-usuario th {
     background-color: #007bff;
     color: white;
-    padding: 12px;
+    padding: 15px;
     text-align: left;
     font-size: 16px;
 }
 
 /*Células da tabela*/
 .tabela-usuario td {
-    padding: 12px;
+    padding: 15px;
     border-bottom: 1px solid #ddd;
     color: #555;
     font-size: 15px;
@@ -111,4 +111,77 @@ hr {
 /*Remove a borda inferiro da última linha*/
 .tabela-usuario tr:last-child td {
     border-bottom: none;
+}
+
+/*TABELA DOS SERVIÇOS*/
+.tabela-servicos {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgb(0 0 0 / 0.1);
+}
+
+/*Cabeçalho*/
+.tabela-servicos th {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    text-align: left;
+    font-size: 16px;
+}
+
+/*Células*/
+.tabela-servicos td {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    color: #555;
+    font-size: 15px;
+    vertical-align: middle;
+}
+
+/*A coluna da descrição ocupa a maior parte da tabela*/
+.tabela-servicos th:first-child, .tabela-servicos td:first-child {
+    width: 65%;
+}
+
+/*A coluna de status fica menor*/
+.tabela-servicos th:nth-child(2), .tabela-servicos td:nth-child(2) {
+    width: 15%;
+}
+
+/*A coluna de ação fica menor.*/
+.tabela-servicos th:nth-child(3), .tabela-servicos td:nth-child(3) {
+    width: 20%;
+}
+
+/*Quando passar o mouse sobre uma.*/
+.tabela-servicos tr:hover {
+    background-color: #f1f7ff;
+}
+
+/*Remove a borda da última*/
+.tabela-servicos tr:last-child td{
+    border-bottom: none;
+}
+
+/*BOTÃO DENTRO DA TABELA*/
+/*O botão de cancelar não precisa o ocupar a largura inteira da tela.
+Como os botões gerais possuem width:100%, fazemos uma exceção para
+os botões que estão dentro da tabela.
+*/
+.tabela-servicos button {
+    width: auto;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+/*MENSAGENS*/
+#mensagem, #mensagem-cadastro {
+    text-align: center;
+    font-weight: bold;
+    min-height: 20px;
 }
