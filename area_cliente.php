@@ -137,7 +137,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
         Isso faz com que oformulário desapareça
         e a tabela de serviços seja mostrada novamente
         */
-        header("Location: area_usuario.php");
+        header("Location: area_cliente.php");
         exit;
     }else{
         echo "<p>Erro ao solicitar o serviço.</p>";
@@ -163,7 +163,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["cancelar_servico"]) ) {
     //Verifica se a alteração funcionou
     if($resultado) {
         //Atualiza a página
-        header("Location: area_usuario.php");
+        header("Location: area_cliente.php");
         exit;
     }else{
         echo "<p>Erro ao cancelar o serviço.</p>";
@@ -328,7 +328,7 @@ $senha = $dadosUsuario["senha"];*/
                         <!--BOTÃO SOLICITAR-->
                         <button type="submit" name="solicitar_servico" value="1">SOLICITAR SERVIÇO</button>
                         <!--Botão CANCELAR SOLICITAÇÃO-->
-                        <a href="area_usuario.php">
+                        <a href="area_cliente.php">
                             <button type="button">CANCELAR</button>
                         </a>
                     </form>
