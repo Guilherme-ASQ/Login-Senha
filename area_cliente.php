@@ -393,7 +393,7 @@ $senha = $dadosUsuario["senha"];*/
                                             CANCELADO, não mostrar
                                             o botão novamente.
                                             -->
-                                            <span>Serviç cancelado</span>
+                                            <span>Serviço cancelado</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
