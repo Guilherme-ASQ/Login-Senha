@@ -156,7 +156,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["cancelar_servico"]) ) {
     */
     $resultado = pg_query_params(
         $conexao,
-        "UPDATE servicos SET status = 'CANCELADO' WHERE id_servicos = $1 AND id_cliente = $2",
+        "UPDATE servicos SET status = 'CANCELADO' WHERE id_servicos = $1 AND id_usuario = $2",
         array($idServico, $idUsuario)
     );
 
@@ -385,7 +385,7 @@ $senha = $dadosUsuario["senha"];*/
                                             serviço deve ser cancelado.
                                             -->
                                             <input type="hidden" name="id_servico" value="<?php echo $servico["id_servicos"]; ?>">
-                                            <button type="submit" name=""cancelar_servico value="1">CANCELAR</button>
+                                            <button type="submit" name="cancelar_servico" value="1">CANCELAR</button>
                                         </form>
 
                                         <?php else: ?>
