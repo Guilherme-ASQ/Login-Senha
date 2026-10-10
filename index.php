@@ -76,7 +76,7 @@
 
                 }elseif($dadosUsuario["tipo_usuario"] === "ADMINISTRADOR" ) {
                     /*REDIRECIONA O ADMINISTRADOR PARA A ÁREA ADMINISTRATIVA.*/
-                    header("Location: area_administrador.pho");
+                    header("Location: area_administrador.php");
                     //Encerra o código
                     exit;
 
