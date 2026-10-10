@@ -4,7 +4,7 @@ session_start();
 
 //LOGOUT
 //Verifica se o administrador clicou no botão SAIR
-if(isset($_SESSION["sair"])){
+if(isset($_GET["sair"])){
     //Destrói a sessão
     session_destroy();
     //Volta para a página inicial
