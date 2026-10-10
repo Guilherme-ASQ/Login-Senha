@@ -62,6 +62,8 @@
 
                 //Guarda o nome do usuário
                 $_SESSION["usuario"] = $dadosUsuario["nome"];
+                //Guarda o email - pq eu to usuando o email pra fazer login
+                $_SESSION["email"] = $dadosUsuario["email"];
                 //Guarda o tipo do usuário
                 $_SESSION["tipo_usuario"] = $dadosUsuario["tipo_usuario"];
 
