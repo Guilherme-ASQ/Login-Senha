@@ -197,7 +197,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ){
 
                 </div>
             <!--FIM FORMULÁRIO DE EDIÇÃO-->
-            <?php endiif; ?>
+            <?php endif; ?>
 
         </div>
     </body>
