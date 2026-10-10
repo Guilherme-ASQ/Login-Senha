@@ -35,7 +35,7 @@ if(!$conexao) {
 }
 
 //Pega o usuário que está logado.
-$usuarioLogado = $_SESSION["usuario"];
+$usuarioLogado = $_SESSION["email"];
 
 //Busca os dados do usuario
 /*Busca os dados do usuário no banco. Pegamos o nome, email,
@@ -44,7 +44,7 @@ Esse ID será utilizado para relazionar o usuário aos serviços
 */
 $resultado = pg_query_params(
     $conexao,
-    "SELECT id_usuarios, nome, email, senha FROM usuarios WHERE nome = $1 AND tipo_usuario = 'CLIENTE' ",
+    "SELECT id_usuarios, nome, email, senha FROM usuarios WHERE email = $1 AND tipo_usuario = 'CLIENTE' ",
     array($usuarioLogado)
 );
 /*MUDAR DEPOIS O COMANDO SELECT. Mudar a parte do WHERE pra email no lugar de nome
@@ -82,14 +82,14 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
     if($novaSenha == "") {
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2 WHERE nome = $3 AND tipo_usuario = 'CLIENTE' ",
+            "UPDATE usuarios SET nome = $1, email = $2 WHERE email = $3 AND tipo_usuario = 'CLIENTE' ",
             array($novoNome, $novoEmail, $usuarioLogado)
         );
     }else{
         //Se o usuário digitou uma senha, atualiza também a senha.
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE nome = $4 AND tipo_usuario = 'CLIENTE'",
+            "UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE email = $4 AND tipo_usuario = 'CLIENTE'",
             array($novoNome, $novoEmail, $novaSenha, $usuarioLogado)
         );
     }
