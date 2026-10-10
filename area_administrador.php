@@ -45,7 +45,7 @@ if(!$conexao){
 
 //PEGA O USUÁRIO QUE ESTÁ LOGADO
 //Pega o nome do usuário que foi armazenado na sessão durante o login.
-$usuarioLogado = $_SESSION["usuario"];
+$usuarioLogado = $_SESSION["email"];
 
 //BUSCA OS DADOS DO ADMINISTRADOR
 $resultado = pg_query_params(
@@ -97,6 +97,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ){
         //Faz a sessão guardar o NOVO nome do usuário.
         //Atualiza a página, desse jeito mostra as novas informações do usuário.
         $_SESSION["usuario"] = $novoNome;
+        $_SESSION["email"] = $novoEmail;
         header("Location: area_administrador.php");
         exit;
     }else{
