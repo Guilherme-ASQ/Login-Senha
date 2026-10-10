@@ -10,7 +10,7 @@
             die("Erro ao conectar ao banco de dados.");
         }
 
-        //Formulário de Cadastro para cadastrar novos usuários.
+        //Formulário de Cadastro para cadastrar novos usuários. VERIFICA SE O FORMULÁRIO ENVIADO É O FORMULÁRIO DE CADASTRO
         if(isset($_POST["novoUsuario"]) && isset($_POST["novaSenha"]) && isset($_POST["novoEmail"])) {
         //Pega os dados digitados.
         $novoUsuario = $_POST["novoUsuario"];
@@ -33,7 +33,7 @@
             echo "<p>Erro ao realizar o cadastro.</p>";
             }
         }
-        //Formulário de Login
+        //Formulário de Login. VERIFICA SE O FORMULÁRIO ENVIADO É O FORMULÁRIO DE LOGIN
         elseif(isset($_POST["email"]) && isset($_POST["senha"]) ) {
         //Pega o usuário digitado
         //$usuario = $_POST["usuario"];
@@ -58,20 +58,28 @@
 
             //Compara a senha digitada com a senha armazenada
             if($senha === $dadosUsuario["senha"] ) {
-                //Verifica o tipo do usuário
+                /*GUARDA OS DADOS DO USUÁRIO NA SESSÃO*/
+
+                //Guarda o nome do usuário
+                $_SESSION["usuario"] = $dadosUsuario["nome"];
+                //Guarda o tipo do usuário
+                $_SESSION["tipo_usuario"] = $dadosUsuario["tipo_usuario"];
+
+                //Verifica o Tipo do Usuário
+                //Se o Tipo do Usuário for CLIENTE
                 if($dadosUsuario["tipo_usuario"] === "CLIENTE" ) {
-                    //Guarda o nome do usuario na sessão.
-                    //A area_cliente.php usará essa informação para descobrir qual usuário está logado.
-                    $_SESSION["usuario"] = $dadosUsuario["nome"];
-                    //Guarda também o tipo do usuário
-                    $_SESSION["tipo_usuario"] = $dadosUsuario["tipo_usuario"];
                     //Redireciona para a área do cliente
                     header("Location: area_cliente.php");
 
                     //Encerra o código para impedir que o restante da página seja executada.
                     exit;
+
                 }elseif($dadosUsuario["tipo_usuario"] === "ADMINISTRADOR" ) {
-                    echo "<p>Login de Administrador realizado com sucesso. Área administrativa ainda não criada.</p>";
+                    /*REDIRECIONA O ADMINISTRADOR PARA A ÁREA ADMINISTRATIVA.*/
+                    header("Location: area_administrador.pho");
+                    //Encerra o código
+                    exit;
+
                 }else{
                     echo "<p>Tipo de Usuário inválido.</p>";
                     }
@@ -87,7 +95,7 @@
 <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
-        <!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>LOGIN e SENHA - Conexao BANCO</title>
         <link rel="stylesheet" href="style.css">
     </head>
