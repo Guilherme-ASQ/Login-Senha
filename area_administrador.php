@@ -133,7 +133,7 @@
     }
 
     //BUSCA OS SERVIÇOS SOLICITADOS
-    $resultadoSolicitados = pg_query_params(
+    $resultadoSolicitados = pg_query(
         $conexao,
         "SELECT
             servicos.id_servicos AS id_servico,
