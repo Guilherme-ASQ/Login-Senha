@@ -153,7 +153,7 @@
     }
 
     //BUSCAR OS SERVIÇOS EM ANÁLISE
-    $resultadoAnalise = pg_query_params(
+    $resultadoAnalise = pg_query(
         $conexao,
         "SELECT
             servicos.id_servicos AS id_servico,
