@@ -173,7 +173,7 @@
     }
 
     //BUSCAR OS SERVIÇOS CONCLUÍDOS
-    $resultadoConcluidos = pg_query_params(
+    $resultadoConcluidos = pg_query(
         $conexao,
         "SELECT
             servicos.id_servicos AS id_servico,
