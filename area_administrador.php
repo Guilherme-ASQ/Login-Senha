@@ -304,7 +304,7 @@
                             <th>Cliente e Solicitação</th>
                         </tr>
                         <?php if(pg_num_rows($resultadoSolicitados) > 0): ?>
-                            <?php while($idServico = pg_fetch_assoc($resultadoSolicitados)): ?>
+                            <?php while($servico = pg_fetch_assoc($resultadoSolicitados)): ?>
                                 <tr>
                                     <td>
                                         <strong>Nome:</strong><br>
