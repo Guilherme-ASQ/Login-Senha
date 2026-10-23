@@ -44,7 +44,7 @@ Esse ID será utilizado para relazionar o usuário aos serviços
 */
 $resultado = pg_query_params(
     $conexao,
-    "SELECT id_usuarios, nome, email, senha FROM usuarios WHERE email = $1 AND tipo_usuario = 'CLIENTE' ",
+    "SELECT id_usuarios, nome, email, senha, telefone FROM usuarios WHERE email = $1 AND tipo_usuario = 'CLIENTE' ",
     array($usuarioLogado)
 );
 /*MUDAR DEPOIS O COMANDO SELECT. Mudar a parte do WHERE pra email no lugar de nome
@@ -69,6 +69,8 @@ $nome = $dadosUsuario["nome"];
 $email = $dadosUsuario["email"];
 //Guarda a senha
 $senha = $dadosUsuario["senha"];
+//Guarda o Telefone
+$telefone = $dadosUsuario["telefone"];
 
 //Verifica se o formulário de edição foi enviado
 //Salvar alterações
@@ -77,20 +79,26 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
     $novoNome = $_POST["nome"];
     $novoEmail = $_POST["email"];
     $novaSenha = $_POST["senha"];
+    $novoTelefone = $_POST["telefone"];
+
+    //Se o telefone estiver vazio, mantem o telefone que já está cadastrado.
+    if($novoTelefone == ""){
+        $novoTelefone = $telefone;
+    }
 
     //Se a senha estiver vazia, mantém a senha antiga.
     if($novaSenha == "") {
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2 WHERE email = $3 AND tipo_usuario = 'CLIENTE' ",
-            array($novoNome, $novoEmail, $usuarioLogado)
+            "UPDATE usuarios SET nome = $1, email = $2, telefone = $3 WHERE email = $4 AND tipo_usuario = 'CLIENTE' ",
+            array($novoNome, $novoEmail, $novoTelefone, $usuarioLogado)
         );
     }else{
         //Se o usuário digitou uma senha, atualiza também a senha.
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE email = $4 AND tipo_usuario = 'CLIENTE'",
-            array($novoNome, $novoEmail, $novaSenha, $usuarioLogado)
+            "UPDATE usuarios SET nome = $1, email = $2, senha = $3, telefone = $4 WHERE email = $5 AND tipo_usuario = 'CLIENTE'",
+            array($novoNome, $novoEmail, $novaSenha, $novoTelefone, $usuarioLogado)
         );
     }
 
@@ -98,6 +106,9 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
     if($resultado) {
         //Atualiza o nome armazenado na sessão.
         $_SESSION["usuario"] = $novoNome;
+
+        //Atualiza o email armazenado na sessão
+        $_SESSION["email"] = $novoEmail;
 
         header("Location: area_cliente.php");
         exit;
@@ -247,6 +258,14 @@ $senha = $dadosUsuario["senha"];*/
                         </td>
                     </tr>
 
+                    <!--ADICIONEI O CAMPO DO TELEFONE-->
+                    <tr>
+                        <td>Telefone</td>
+                        <td>
+                            <?php echo htmlspecialchars($telefone ?? ""); ?>
+                        </td>
+                    </tr>
+
                     <tr>
                         <td>Senha</td>
                         <td>
@@ -284,6 +303,13 @@ $senha = $dadosUsuario["senha"];*/
                     <div class="input-group">
                         <label for="email">Email:</label>
                         <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($email); ?> " required>
+                    </div>
+
+                    <!--TELEFONE-->
+                    <div class="input-group">
+                        <label for="telefone">Telefone:</label>
+                        <input type="tel" name="telefone" id="telefone" value=" <?php echo htmlspecialchars($telefone ?? ""); ?> " placeholder="Digite seu telefone" >
+                        <small>Deixe vazio para manter o telefone atual.</small>
                     </div>
 
                     <!--SENHA-->
