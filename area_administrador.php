@@ -37,7 +37,7 @@
     //BUSCA OS DADOS DO ADMINISTRADOR
     $resultado = pg_query_params(
         $conexao,
-        "SELECT id_usuarios, nome, email, senha FROM usuarios WHERE email = $1 AND tipo_usuario = 'ADMINISTRADOR'",
+        "SELECT id_usuarios, nome, email, senha, telefone FROM usuarios WHERE email = $1 AND tipo_usuario = 'ADMINISTRADOR'",
         array($usuarioLogado)
     );
 
@@ -53,6 +53,8 @@
     $nome = $dadosUsuario["nome"];
     $email = $dadosUsuario["email"];
     $senha = $dadosUsuario["senha"];
+    //Guarda o telefone
+    $telefone = $dadosUsuario["telefone"];
 
     //ALTERAR STATUS DOS SERVIÇOS
     //Verifica se o administrador clicou em um botão para alterar o status de um serviço.
@@ -102,20 +104,26 @@
         $novoNome = $_POST["nome"];
         $novoEmail = $_POST["email"];
         $novaSenha = $_POST["senha"];
+        $novoTelefone = $_POST["telefone"];
+
+        //Se o telefone estiver vazio, mantém o telefone que já está cadastrado.
+        if($novoTelefone == ""){
+            $novoTelefone = $telefone;
+        }
 
         //Se a senha estiver vazia, mantém a senha atual.
         if($novaSenha == ""){
             $resultado = pg_query_params(
                 $conexao,
-                "UPDATE usuarios SET nome = $1, email = $2 WHERE id_usuarios = $3 AND tipo_usuario = 'ADMINISTRADOR'",
-                array($novoNome, $novoEmail, $idUsuario)
+                "UPDATE usuarios SET nome = $1, email = $2, telefone = $3 WHERE id_usuarios = $4 AND tipo_usuario = 'ADMINISTRADOR'",
+                array($novoNome, $novoEmail, $novoTelefone, $idUsuario)
             );
         }else{
             //Atualiza a senha se o usuário digitou uma nova.
             $resultado = pg_query_params(
                 $conexao,
-                "UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE id_usuarios = $4 AND tipo_usuario = 'ADMINISTRADOR'",
-                array($novoNome, $novoEmail, $novaSenha, $idUsuario)
+                "UPDATE usuarios SET nome = $1, email = $2, senha = $3, telefone = $4 WHERE id_usuarios = $5 AND tipo_usuario = 'ADMINISTRADOR'",
+                array($novoNome, $novoEmail, $novaSenha, $novoTelefone, $idUsuario)
             );
         }
 
@@ -231,6 +239,14 @@
                         </td>
                     </tr>
 
+                    <!--Adicionei o telefone-->
+                    <tr>
+                        <td>Telefone</td>
+                        <td>
+                            <?php echo htmlspecialchars($telefone ?? ""); ?>
+                        </td>
+                    </tr>
+
                     <tr>
                         <td>Senha</td>
                         <td>
@@ -267,6 +283,13 @@
                         <div class="inpu-group">
                             <label for="email">Email:</label>
                             <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($email); ?>" required>
+                        </div>
+
+                        <!--TELEFONE-->
+                        <div class="input-group">
+                            <label for="telefone">Telefone:</label>
+                            <input type="tel" name="telefone" id="telefone" value="<?php echo htmlspecialchars($telefone ?? "") ?>" placeholder="Digite seu telefone">
+                            <small>Deixe vazio para manter o telefone atual.</small>
                         </div>
 
                         <div class="input-group">
