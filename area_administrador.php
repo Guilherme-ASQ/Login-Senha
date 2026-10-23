@@ -280,7 +280,7 @@
                             <input type="text" name="nome" id="nome" value="<?php echo htmlspecialchars($nome); ?>" required>
                         </div>
 
-                        <div class="inpu-group">
+                        <div class="input-group">
                             <label for="email">Email:</label>
                             <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($email); ?>" required>
                         </div>
