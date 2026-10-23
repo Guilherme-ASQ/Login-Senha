@@ -11,19 +11,20 @@
         }
 
         //Formulário de Cadastro para cadastrar novos usuários. VERIFICA SE O FORMULÁRIO ENVIADO É O FORMULÁRIO DE CADASTRO
-        if(isset($_POST["novoUsuario"]) && isset($_POST["novaSenha"]) && isset($_POST["novoEmail"])) {
+        if(isset($_POST["novoUsuario"]) && isset($_POST["novaSenha"]) && isset($_POST["novoEmail"]) && isset($_POST["novoTelefone"]) ) {
         //Pega os dados digitados.
         $novoUsuario = $_POST["novoUsuario"];
         $novaSenha = $_POST["novaSenha"];
         $novoEmail = $_POST["novoEmail"];
+        $novoTelefone = $_POST["novoTelefone"];
         //Vou fazer todos os cadastros dos novos usuários com o tipo "CLIENTE", pq tecnicamente terão poucos clientes do tipo "ADMINISTRADOR". Caso eu precise cadastrar um novo administrador, eu mudo no banco de dados. Fazer isso não é o mais adequado, mas é como eu vou fazer.
         $tipoUsuario = "CLIENTE";
 
         //Inserir os dados no Banco de Dados
         $resultado = pg_query_params(
             $conexao,
-            "INSERT INTO usuarios (nome, senha, email, tipo_usuario) VALUES ($1, $2, $3,$4)",
-            array($novoUsuario, $novaSenha, $novoEmail, $tipoUsuario)
+            "INSERT INTO usuarios (nome, senha, email, telefone, tipo_usuario) VALUES ($1, $2, $3,$4,$5)",
+            array($novoUsuario, $novaSenha, $novoEmail, $novoTelefone, $tipoUsuario)
         );
 
         //Verifica se o cadastro funcionou.
@@ -141,6 +142,11 @@
                 <div class="input-group">
                     <label for="novoEmail">Novo Email:</label>
                     <input type="email" name="novoEmail" id="novoEmail" placeholder="Digite um email" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="novoTelefone">Telefone:</label>
+                    <input type="tel" name="novoTelefone" id="novoTelefone" placeholder="Digite seu telefone" required>
                 </div>
 
                 <button type="submit">CADASTRAR</button>
