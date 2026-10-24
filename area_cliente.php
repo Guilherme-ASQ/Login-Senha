@@ -184,7 +184,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
             //Verifica o tipo real do arquivo.
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $tipoArquivo = finfo_file($finfo, $arquivoTemporario);
-            $finfo_close($finfo);
+            finfo_close($finfo);
 
             //Aceita somente os tipos abaixo
             $tiposPermitidos = array(
