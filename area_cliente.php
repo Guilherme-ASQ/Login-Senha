@@ -1,4 +1,6 @@
 <?php
+error_log("TESTE: o arquivo area_cliente.php foi executado.");
+
 // Inicia a sessão
 session_start();
 
