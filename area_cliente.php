@@ -1,174 +1,198 @@
 <?php
-//Inicia a sessão
+// Inicia a sessão
 session_start();
 
-//Verifica se o usuário clicou no botão SAIR
-if(isset($_GET["sair"])) {
-    //Detrói a sessão do usuário
+// Verifica se o usuário clicou no botão SAIR
+if (isset($_GET["sair"])) {
     session_destroy();
-    //Volta para a página de login
     header("Location: index.php");
     exit;
 }
 
-//Verifica se existe um usuário logado
-if(!isset($_SESSION["usuario"]) ){
-    //Se não existe usuários na sessão, volta para a página de login.
+// Verifica se existe um usuário logado
+if (!isset($_SESSION["usuario"])) {
     header("Location: index.php");
     exit;
 }
 
-//Verifica se o Usuário é Cliente
-if(!isset($_SESSION["tipo_usuario"]) || $_SESSION["tipo_usuario"] !== "CLIENTE" ) {
-    //Se não for CLIENTE, volta para o login
+// Verifica se o usuário é CLIENTE
+if (
+    !isset($_SESSION["tipo_usuario"]) ||
+    $_SESSION["tipo_usuario"] !== "CLIENTE"
+) {
     header("Location: index.php");
     exit;
 }
 
-//Conexão com o Banco
+// Conexão com o banco de dados Neon
 $databaseUrl = getenv("DATABASE_URL");
 $conexao = pg_connect($databaseUrl);
 
-//Verifica se a conexão funcionou
-if(!$conexao) {
+if (!$conexao) {
     die("Erro ao conectar ao banco de dados.");
 }
 
-//Conexão com o Supabase - site para guardar os arquivos das solicitações de serviços.
+// Conexão com o Supabase
 $supabaseUrl = getenv("SUPABASE_URL");
 $supabaseKey = getenv("SUPABASE_SERVICE_ROLE_KEY");
 
-//Pega o usuário que está logado.
+// Nome do bucket no Supabase.
+// Confirme se o nome está exatamente igual ao do painel.
+$nomeBucket = "anexo-servicos";
+
+// Pega o e-mail do usuário logado
 $usuarioLogado = $_SESSION["email"];
 
-//Busca os dados do usuario
-/*Busca os dados do usuário no banco. Pegamos o nome, email,
-senha, e agora pegamos o id_usuarios.
-Esse ID será utilizado para relazionar o usuário aos serviços
-*/
+// Busca os dados do usuário
 $resultado = pg_query_params(
     $conexao,
-    "SELECT id_usuarios, nome, email, senha, telefone FROM usuarios WHERE email = $1 AND tipo_usuario = 'CLIENTE' ",
+    "SELECT id_usuarios, nome, email, senha, telefone
+     FROM usuarios
+     WHERE email = $1 AND tipo_usuario = 'CLIENTE'",
     array($usuarioLogado)
 );
-/*MUDAR DEPOIS O COMANDO SELECT. Mudar a parte do WHERE pra email no lugar de nome
-"SELECT id_usuarios, nome, email, senha FROM usuarios WHERE email = $1 AND tipo_usuario = 'CLIENTE' ",
-*/
 
-//Verifica se encontrou o usuário.
-if(!$resultado || pg_num_rows($resultado) == 0 ) {
+// Verifica se encontrou o usuário
+if (!$resultado || pg_num_rows($resultado) == 0) {
     die("Usuário não encontrado.");
 }
 
-//GUARDA OS DADOS DO USUÁRIOS
-//Pega os dados retornados pelo banco
+// Guarda os dados do usuário
 $dadosUsuario = pg_fetch_assoc($resultado);
 
-//Guarda o ID do usuário
 $idUsuario = $dadosUsuario["id_usuarios"];
-
-//Guarda o nome
 $nome = $dadosUsuario["nome"];
-//Guarda o email
 $email = $dadosUsuario["email"];
-//Guarda a senha
 $senha = $dadosUsuario["senha"];
-//Guarda o Telefone
 $telefone = $dadosUsuario["telefone"];
 
-//Verifica se o formulário de edição foi enviado
-//Salvar alterações
-if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
-    //Pega os novos dados enviados pelo formulários
-    $novoNome = $_POST["nome"];
-    $novoEmail = $_POST["email"];
-    $novaSenha = $_POST["senha"];
-    $novoTelefone = $_POST["telefone"];
+// ==================================================
+// EDITAR OS DADOS DO CLIENTE
+// ==================================================
 
-    //Se o telefone estiver vazio, mantem o telefone que já está cadastrado.
-    if($novoTelefone == ""){
+if (
+    $_SERVER["REQUEST_METHOD"] == "POST" &&
+    isset($_POST["salvar"])
+) {
+    $novoNome = trim($_POST["nome"] ?? "");
+    $novoEmail = trim($_POST["email"] ?? "");
+    $novaSenha = $_POST["senha"] ?? "";
+    $novoTelefone = trim($_POST["telefone"] ?? "");
+
+    // Verifica se os campos obrigatórios foram preenchidos
+    if ($novoNome == "" || $novoEmail == "") {
+        die("Preencha o nome e o e-mail.");
+    }
+
+    // Se o telefone estiver vazio, mantém o telefone antigo
+    if ($novoTelefone == "") {
         $novoTelefone = $telefone;
     }
 
-    //Se a senha estiver vazia, mantém a senha antiga.
-    if($novaSenha == "") {
+    // Se a senha estiver vazia, mantém a senha antiga
+    if ($novaSenha == "") {
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2, telefone = $3 WHERE email = $4 AND tipo_usuario = 'CLIENTE' ",
-            array($novoNome, $novoEmail, $novoTelefone, $usuarioLogado)
+            "UPDATE usuarios
+             SET nome = $1, email = $2, telefone = $3
+             WHERE id_usuarios = $4
+               AND tipo_usuario = 'CLIENTE'",
+            array(
+                $novoNome,
+                $novoEmail,
+                $novoTelefone,
+                $idUsuario
+            )
         );
-    }else{
-        //Se o usuário digitou uma senha, atualiza também a senha.
+    } else {
+        // Se uma nova senha foi digitada, atualiza também a senha
         $resultado = pg_query_params(
             $conexao,
-            "UPDATE usuarios SET nome = $1, email = $2, senha = $3, telefone = $4 WHERE email = $5 AND tipo_usuario = 'CLIENTE'",
-            array($novoNome, $novoEmail, $novaSenha, $novoTelefone, $usuarioLogado)
+            "UPDATE usuarios
+             SET nome = $1, email = $2, senha = $3, telefone = $4
+             WHERE id_usuarios = $5
+               AND tipo_usuario = 'CLIENTE'",
+            array(
+                $novoNome,
+                $novoEmail,
+                $novaSenha,
+                $novoTelefone,
+                $idUsuario
+            )
         );
     }
 
-    //Verifica se a Alteração funcionou
-    if($resultado) {
-        //Atualiza o nome armazenado na sessão.
+    // Verifica se a alteração funcionou
+    if ($resultado) {
         $_SESSION["usuario"] = $novoNome;
-
-        //Atualiza o email armazenado na sessão
         $_SESSION["email"] = $novoEmail;
 
         header("Location: area_cliente.php");
         exit;
-
-        //Mostra a mensagem de sucesso
-        //echo "<p>Informações atuzalizadas com sucesso!</p>";
-
-        //Atualiza  variável usada posteriormente
-        //$usuarioLogado = $novoNome;
-    }else{
-        echo "<p>Erro ao atualizar as informações.</p>";
+    } else {
+        error_log("Erro ao atualizar os dados do cliente.");
+        echo "<p>Erro ao atualizar as informações. Verifique se o nome e o e-mail já estão cadastrados.</p>";
     }
 }
 
-/*Solicitar NOVO SERVIÇO*/
-//Verifica se o formulário de novo serviço foi enviado
-if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
-    //Pega a descrição digitada pelo usuário
-    //$descricao = $_POST["descricao"];
+// ==================================================
+// SOLICITAR UM NOVO SERVIÇO
+// ==================================================
+
+if (
+    $_SERVER["REQUEST_METHOD"] == "POST" &&
+    isset($_POST["solicitar_servico"])
+) {
+    // Pega a descrição digitada pelo cliente
     $descricao = trim($_POST["descricao"] ?? "");
-    //O novo serviço começa com o status SOLICITADO
+
+    // O serviço começa com o status SOLICITADO
     $status = "SOLICITADO";
 
-    //Verifica se a descrição foi preenchida
-    if($descricao == ""){
+    if ($descricao == "") {
         die("Digite a descrição do serviço.");
     }
 
-    //Verifica a configuração do Supabase
-    if(!$supabaseUrl || !$supabaseKey){
+    // Verifica a configuração do Supabase
+    if (
+        !$supabaseUrl ||
+        !$supabaseKey
+    ) {
+        error_log("SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurada.");
         die("Erro: configuração do Supabase não encontrada.");
     }
 
-    //Prepara a lista de arquivos enviados.
+    // Lista os arquivos que passaram pela validação
     $arquivos = array();
 
-    /*Aparentemente é um comadno IF grande, mas pelo visto
-    é pra verificar ou processar os arquivos que foram
-    anexados.*/
-    if(isset($_FILES["anexos"])){
+    // Verifica se foram enviados anexos
+    if (isset($_FILES["anexos"])) {
         $totalArquivos = count($_FILES["anexos"]["name"]);
 
-        //Limita a quantidade de arquivos por solicitação.
-        if($totalArquivos > 5){
+        // Limita a quantidade de arquivos por serviço
+        $quantidadeSelecionada = 0;
+
+        for ($i = 0; $i < $totalArquivos; $i++) {
+            if ($_FILES["anexos"]["error"][$i] != UPLOAD_ERR_NO_FILE) {
+                $quantidadeSelecionada++;
+            }
+        }
+
+        if ($quantidadeSelecionada > 5) {
             die("Você pode enviar no máximo 5 arquivos por serviço.");
         }
 
-        //Verifica cada arquivo antes de enviar
-        for($i = 0;$i < $totalArquivos; $i++){
-            //Ignora se o cliente não selecionou um arquivo
-            if($_FILES["anexos"]["error"][$i] == UPLOAD_ERR_NO_FILE){
+        // Verifica cada arquivo
+        for ($i = 0; $i < $totalArquivos; $i++) {
+            $erroUpload = $_FILES["anexos"]["error"][$i];
+
+            // Ignora campos de arquivo que ficaram vazios
+            if ($erroUpload == UPLOAD_ERR_NO_FILE) {
                 continue;
             }
 
-            //Verifica se houve erro no envio
-            if($_FILES["anexos"]["error"][$i] != UPLOAD_ERR_OK){
+            // Verifica se houve erro no recebimento do arquivo
+            if ($erroUpload != UPLOAD_ERR_OK) {
                 die("Erro ao receber um dos arquivos.");
             }
 
@@ -176,17 +200,23 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
             $nomeOriginal = basename($_FILES["anexos"]["name"][$i]);
             $tamanho = $_FILES["anexos"]["size"][$i];
 
-            //Limita cada arquivo a 10 MB.
-            if($tamanho <= 0 || $tamanho > 10 * 1024 * 1024){
-                die("Cada barquivo deve ter no máximo 10 MB.");
+            // Limita cada arquivo a 10 MB
+            if ($tamanho <= 0 || $tamanho > 10 * 1024 * 1024) {
+                die("Cada arquivo deve ter mais de 0 bytes e no máximo 10 MB.");
             }
 
-            //Verifica o tipo real do arquivo.
+            // Verifica o tipo real do arquivo
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+            if ($finfo === false) {
+                error_log("Não foi possível iniciar a verificação do tipo do arquivo.");
+                die("Não foi possível verificar um dos arquivos.");
+            }
+
             $tipoArquivo = finfo_file($finfo, $arquivoTemporario);
             finfo_close($finfo);
 
-            //Aceita somente os tipos abaixo
+            // Tipos de arquivo permitidos
             $tiposPermitidos = array(
                 "image/jpeg" => "jpg",
                 "image/png" => "png",
@@ -194,11 +224,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
                 "application/pdf" => "pdf"
             );
 
-            if(!isset($tiposPermitidos[$tipoArquivo])){
+            if (!isset($tiposPermitidos[$tipoArquivo])) {
                 die("Tipo de arquivo não permitido. Envie imagem JPG, PNG, WebP ou PDF.");
             }
 
-            //Guarda os dados do arquivo validado
+            // Guarda os dados do arquivo validado
             $arquivos[] = array(
                 "temporario" => $arquivoTemporario,
                 "nome_original" => $nomeOriginal,
@@ -209,98 +239,114 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
         }
     }
 
-    /*Inseri o serviço no banco de dados
-    id_usuario recebe o ID do usuário logado
-    descricao recebe o texto digitado.
-    status recebe SOLICITADO.
-    */
+    // Cadastra o serviço no Neon
     $resultado = pg_query_params(
         $conexao,
-        "INSERT INTO servicos (descricao, status, id_usuario) VALUES ($1, $2, $3) RETURNING id_servicos",
+        "INSERT INTO servicos (descricao, status, id_usuario)
+         VALUES ($1, $2, $3)
+         RETURNING id_servicos",
         array($descricao, $status, $idUsuario)
     );
 
-    if(!$resultado){
+    if (!$resultado) {
+        error_log("Erro ao cadastrar serviço no Neon.");
         die("Erro ao cadastrar o serviço no banco de dados.");
     }
 
     $dadosServico = pg_fetch_assoc($resultado);
     $idServico = $dadosServico["id_servicos"];
 
-    //Guarda os caminhos dos arquivos enviados
+    // Guarda os caminhos dos arquivos enviados com sucesso
     $arquivosEnviados = array();
 
-    //Envia cada arquivo apra o Supabase
-    foreach($arquivos as $arquivo){
-        //Cria um nome único para evitar nomes repetidos
+    // Envia cada arquivo para o Supabase
+    foreach ($arquivos as $arquivo) {
+        // Cria um nome único para evitar nomes repetidos
         $nomeArmazenado = bin2hex(random_bytes(16))
-            . "." .$arquivo["extensao"];
+            . "." . $arquivo["extensao"];
 
-        //Organiza os arquivos por usuário e serviço
+        // Organiza os arquivos por usuário e serviço
         $caminhoArquivo = $idUsuario . "/"
             . $idServico . "/" . $nomeArmazenado;
 
         $urlUpload = rtrim($supabaseUrl, "/")
-            . "/storage/v1/object/anexo-servicos/"
+            . "/storage/v1/object/"
+            . $nomeBucket . "/"
             . $caminhoArquivo;
 
-        //Lê o conteúdo do arquivo temporário
+        // Inicializa as variáveis de diagnóstico
+        $uploadFuncionou = false;
+        $codigoHTTP = 0;
+        $erroCurl = "";
+        $respostaSupabase = "";
+
+        // Lê o conteúdo do arquivo temporário
         $conteudoArquivo = file_get_contents($arquivo["temporario"]);
 
-        if($conteudoArquivo === false){
-            $uploadFuncionou = false;
-        }else{
-            //Envia o arquivo ao SUpabase usando cURL
+        if ($conteudoArquivo === false) {
+            $erroCurl = "Não foi possível ler o arquivo temporário.";
+        } else {
+            // Prepara o envio para o Supabase
             $curl = curl_init($urlUpload);
 
-            curl_setopt_array($curl, array(
-                CURLOPT_POST => true,
-                CURLOPT_HTTPHEADER => array(
-                    "apikey: " . $supabaseKey,
-                    "Authorization: Bearer " . $supabaseKey,
-                    "Content-Type: " . $arquivo["tipo"],
-                    "x-upsert: false"
-                ),
-                CURLOPT_POSTFIELDS => $conteudoArquivo,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 15,
-                CURLOPT_TIMEOUT => 120
-            ));
+            if ($curl === false) {
+                $erroCurl = "Não foi possível iniciar o cURL.";
+            } else {
+                curl_setopt_array($curl, array(
+                    CURLOPT_POST => true,
+                    CURLOPT_HTTPHEADER => array(
+                        "apikey: " . $supabaseKey,
+                        "Authorization: Bearer " . $supabaseKey,
+                        "Content-Type: " . $arquivo["tipo"],
+                        "x-upsert: false"
+                    ),
+                    CURLOPT_POSTFIELDS => $conteudoArquivo,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_CONNECTTIMEOUT => 15,
+                    CURLOPT_TIMEOUT => 120
+                ));
 
-            /**/
-            $respostaSupabase = curl_exec($curl);
-            $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            $erroCurl = curl_error($curl);
+                // Envia o arquivo
+                $respostaSupabase = curl_exec($curl);
 
-            //Verifica se o evento funcionou.
-            $uploadFuncionou = (
-                $respostaSupabase !== false &&
-                $codigoHTTP >= 200 &&
-                $codigoHTTP < 300
-            );
+                // Guarda o código HTTP e o erro do cURL
+                $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                $erroCurl = curl_error($curl);
 
-            if(!$uploadFuncionou){
-                error_log(
-                    "Erro no upload Supabase. HTTP: " . $codigoHTTP .
-                    " | cURL: " . $erroCurl .
-                    " | Resposta: " . $respostaSupabase
+                // Considera o envio bem-sucedido somente se o HTTP for 2xx
+                $uploadFuncionou = (
+                    $respostaSupabase !== false &&
+                    $codigoHTTP >= 200 &&
+                    $codigoHTTP < 300
                 );
-            }
 
-            curl_close($curl);
-            /**/
+                curl_close($curl);
+            }
         }
 
-        //Se o envio falhar, interrompe o processo
-        if(!$uploadFuncionou){
-            //Tenta apagar os arquivos já que foram enviados
-            foreach($arquivosEnviados as $caminhoAnterior){
-                $urlExcluir = rtrim($supabaseUrl, "/")
-                    . "/storage/v1/object/anexo-servicos/"
-                    . $caminhoAnterior;
-                
-                    $curlExcluir = curl_init($urlExcluir);
+        // Registra detalhes no log se o upload falhar
+        if (!$uploadFuncionou) {
+            error_log(
+                "Falha no upload Supabase."
+                . " | HTTP: " . $codigoHTTP
+                . " | cURL: " . $erroCurl
+                . " | Resposta: " . (
+                    is_string($respostaSupabase)
+                    ? $respostaSupabase
+                    : ""
+                )
+            );
 
+            // Tenta excluir os arquivos enviados anteriormente
+            foreach ($arquivosEnviados as $caminhoAnterior) {
+                $urlExcluir = rtrim($supabaseUrl, "/")
+                    . "/storage/v1/object/"
+                    . $nomeBucket . "/"
+                    . $caminhoAnterior;
+
+                $curlExcluir = curl_init($urlExcluir);
+
+                if ($curlExcluir !== false) {
                     curl_setopt_array($curlExcluir, array(
                         CURLOPT_CUSTOMREQUEST => "DELETE",
                         CURLOPT_HTTPHEADER => array(
@@ -308,204 +354,264 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
                             "Authorization: Bearer " . $supabaseKey
                         ),
                         CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_CONNECTTIMEOUT => 15,
                         CURLOPT_TIMEOUT => 30
                     ));
 
                     curl_exec($curlExcluir);
                     curl_close($curlExcluir);
+                }
             }
 
-            //Remove o serviço criado, pois o envio falho
+            // Remove os registros de anexos que possam ter sido criados
             pg_query_params(
                 $conexao,
-                "DELETE FROM servicos WHERE id_servicos = $1 AND id_usuario = $2",
+                "DELETE FROM anexos_servicos WHERE id_servico = $1",
+                array($idServico)
+            );
+
+            // Remove o serviço criado, pois o upload falhou
+            pg_query_params(
+                $conexao,
+                "DELETE FROM servicos
+                 WHERE id_servicos = $1 AND id_usuario = $2",
                 array($idServico, $idUsuario)
             );
 
-            error_log(
-                "Falha no upload Supabase. HTTP: "
-                . ($codigoHTTP ?? 0)
-                . ". cURL: "
-                . ($erroCurl ?? "")
-            );
-
-            die("Não foi possível enviar um dos arquivos. Verifique o arquivo e tente novamente.");   
+            die("Não foi possível enviar um dos arquivos. Verifique o arquivo e tente novamente.");
         }
 
-        //Guarda o caminho do arquivo para o banco de dados
+        // Guarda o caminho do arquivo enviado
         $arquivosEnviados[] = $caminhoArquivo;
 
-        //Registra o anexo no Neon
+        // Registra o anexo no Neon
         $resultadoAnexo = pg_query_params(
             $conexao,
-            "INSERT INTO anexos_servicos (id_servico, nome_arquivo, caminho_arquivo) VALUES ($1, $2, $3)",
-            array($idServico, $arquivo["nome_original"], $caminhoArquivo)
+            "INSERT INTO anexos_servicos
+             (id_servico, nome_arquivo, caminho_arquivo)
+             VALUES ($1, $2, $3)",
+            array(
+                $idServico,
+                $arquivo["nome_original"],
+                $caminhoArquivo
+            )
         );
 
-        if(!$resultadoAnexo){
-            error_log("Falha ao registrar o anexo no Neon para o serviço " . $idServico);
-            die("O arquivo foi enviado, mas ocorreu um erro ao registrar o anexo no banco de dados. Entre em contato com o administrador.");
+        // Se não conseguir registrar o anexo, registra o erro no log
+        if (!$resultadoAnexo) {
+            error_log(
+                "Falha ao registrar o anexo no Neon."
+                . " | Serviço: " . $idServico
+                . " | Arquivo: " . $arquivo["nome_original"]
+            );
+
+            // Exclui os arquivos enviados ao Supabase
+            foreach ($arquivosEnviados as $caminhoAnterior) {
+                $urlExcluir = rtrim($supabaseUrl, "/")
+                    . "/storage/v1/object/"
+                    . $nomeBucket . "/"
+                    . $caminhoAnterior;
+
+                $curlExcluir = curl_init($urlExcluir);
+
+                if ($curlExcluir !== false) {
+                    curl_setopt_array($curlExcluir, array(
+                        CURLOPT_CUSTOMREQUEST => "DELETE",
+                        CURLOPT_HTTPHEADER => array(
+                            "apikey: " . $supabaseKey,
+                            "Authorization: Bearer " . $supabaseKey
+                        ),
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_CONNECTTIMEOUT => 15,
+                        CURLOPT_TIMEOUT => 30
+                    ));
+
+                    curl_exec($curlExcluir);
+                    curl_close($curlExcluir);
+                }
+            }
+
+            // Remove os registros de anexos e o serviço
+            pg_query_params(
+                $conexao,
+                "DELETE FROM anexos_servicos WHERE id_servico = $1",
+                array($idServico)
+            );
+
+            pg_query_params(
+                $conexao,
+                "DELETE FROM servicos
+                 WHERE id_servicos = $1 AND id_usuario = $2",
+                array($idServico, $idUsuario)
+            );
+
+            die("Ocorreu um erro ao registrar o anexo no banco de dados. Tente novamente.");
         }
     }
 
-    //Serviço e anexos processados
+    // Serviço e anexos processados
     header("Location: area_cliente.php");
     exit;
-
-    //Verifica se o cadastro funcionou
-    //if($resultado) {
-        /*Volta para a página
-        Isso faz com que oformulário desapareça
-        e a tabela de serviços seja mostrada novamente
-        */
-        /*header("Location: area_cliente.php");
-        exit;
-    }else{
-        echo "<p>Erro ao solicitar o serviço.</p>";
-    }*/
 }
 
-//Cancelar Serviço
-//Verifica se o botão CANCELAR foi pressionado
-if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["cancelar_servico"]) ) {
-    //Pega o ID do serviço que será cancelado
-    $idServico = $_POST["id_servico"];
-    /*Altera o status do serviço para CANCELADO
-    Também verificamos id_cliente.
-    Isso impede que um cliente tente cancelar um serviço
-    pertencente a outro cliente.
-    */
+// ==================================================
+// CANCELAR UM SERVIÇO
+// ==================================================
+
+if (
+    $_SERVER["REQUEST_METHOD"] == "POST" &&
+    isset($_POST["cancelar_servico"])
+) {
+    $idServicoCancelar = $_POST["id_servico"] ?? "";
+
+    // Altera somente um serviço pertencente ao cliente logado
     $resultado = pg_query_params(
         $conexao,
-        "UPDATE servicos SET status = 'CANCELADO' WHERE id_servicos = $1 AND id_usuario = $2",
-        array($idServico, $idUsuario)
+        "UPDATE servicos
+         SET status = 'CANCELADO'
+         WHERE id_servicos = $1 AND id_usuario = $2",
+        array($idServicoCancelar, $idUsuario)
     );
 
-    //Verifica se a alteração funcionou
-    if($resultado) {
-        //Atualiza a página
+    if ($resultado) {
         header("Location: area_cliente.php");
         exit;
-    }else{
+    } else {
+        error_log("Erro ao cancelar serviço.");
         echo "<p>Erro ao cancelar o serviço.</p>";
     }
 }
 
-//Busca os serviços do Usuário
-/*Busca somente os serviços pertencentes ao usuário que está
-logado. A ligação é:
-usuarios.id_usuarios
-servicos.id_usuario
+// ==================================================
+// BUSCAR OS SERVIÇOS DO CLIENTE
+// ==================================================
 
-Portanto, cada cliente cerá somente os próprios serviços.
-*/
 $resultadoServicos = pg_query_params(
     $conexao,
-    "SELECT id_servicos, descricao, status FROM servicos WHERE id_usuario = $1 ORDER BY id_servicos DESC",
+    "SELECT id_servicos, descricao, status
+     FROM servicos
+     WHERE id_usuario = $1
+     ORDER BY id_servicos DESC",
     array($idUsuario)
 );
 
-//Verifica se a busca funcionou
-if(!$resultadoServicos){
+if (!$resultadoServicos) {
+    error_log("Erro ao buscar os serviços do cliente.");
     die("Erro ao buscar os serviços.");
 }
 
-//FIM DO CÓDIGO PHP
+// ==================================================
+// BUSCAR OS ANEXOS DOS SERVIÇOS
+// ==================================================
 
-//Busca os dados do cliente
-/*$resultado = pg_query_params(
-    $conexao,
-    "SELECT nome, email, senha FROM usuarios WHERE nome = $1 AND tipo_usuario = 'CLIENTE'",
-    array($usuarioLogado)
-);*/
-
-//Verifica se encontrou o usuário.
-/*if(!$resultado || pg_num_rows($resultado) == 0 ) {
-    die("Usuário não encontrado.");
-}*/
-
-//Pega os dados do banco
-//$dadosUsuario = pg_fetch_assoc($resultado);
-
-//Guarda cada informação em uma variável.
-/*$nome = $dadosUsuario["nome"];
-$email = $dadosUsuario["email"];
-$senha = $dadosUsuario["senha"];*/
-
-//Busca os anexos dos serviços do usuário
 $resultadoAnexos = pg_query_params(
     $conexao,
     "SELECT anexos_servicos.id_servico,
             anexos_servicos.nome_arquivo,
             anexos_servicos.caminho_arquivo
-    FROM anexos_servicos
-    INNER JOIN servicos
-        ON anexos_servicos.id_servico = servicos.id_servicos
-    WHERE servicos.id_usuario = $1
-    ORDER BY anexos_servicos.id_anexo",
+     FROM anexos_servicos
+     INNER JOIN servicos
+         ON anexos_servicos.id_servico = servicos.id_servicos
+     WHERE servicos.id_usuario = $1
+     ORDER BY anexos_servicos.id_anexo",
     array($idUsuario)
 );
 
-//Verifica se a busca dos anexos funcionou
-if(!$resultadoAnexos){
+if (!$resultadoAnexos) {
+    error_log("Erro ao buscar os anexos dos serviços.");
     die("Erro ao buscar os anexos dos serviços.");
 }
 
-//Guarda os anexos separados pelo ID do serviço
+// Guarda os anexos separados pelo ID do serviço
 $anexoPorServico = array();
 
-while($anexo = pg_fetch_assoc($resultadoAnexos)){
-    //Cria o endereço para solicitar uma URL temporária
-    $urlAssinatura = rtrim($supabaseUrl, "/")
-        . "/storage/v1/object/sign/anexo-servicos/"
-        . $anexo["caminho_arquivo"];
-    
-    //Solicita uma URL válida por uma hora
-    $curl = curl_init($urlAssinatura);
+// Verifica a configuração do Supabase antes de gerar URLs
+if (!$supabaseUrl || !$supabaseKey) {
+    error_log("Configuração do Supabase ausente ao buscar anexos.");
+} else {
+    while ($anexo = pg_fetch_assoc($resultadoAnexos)) {
+        // Prepara a URL para solicitar uma URL temporária
+        $urlAssinatura = rtrim($supabaseUrl, "/")
+            . "/storage/v1/object/sign/"
+            . $nomeBucket . "/"
+            . $anexo["caminho_arquivo"];
 
-    curl_setopt_array($curl, array(
-        CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => array(
-            "apikey: " . $supabaseKey,
-            "Authorization: Bearer " . $supabaseKey,
-            "Content-Type: application/json"
-        ),
-        CURLOPT_POSTFIELDS => json_encode(
-            array("expiresIn" => 3600)
-        ),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 15,
-        CURLOPT_TIMEOUT => 30
-    ));
+        // Inicializa variáveis de diagnóstico
+        $respostaSupabase = false;
+        $codigoHTTP = 0;
+        $erroCurl = "";
 
-    $respostaSupabase = curl_exec($curl);
-    $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curl = curl_init($urlAssinatura);
 
-    curl_close($curl);
+        if ($curl !== false) {
+            curl_setopt_array($curl, array(
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => array(
+                    "apikey: " . $supabaseKey,
+                    "Authorization: Bearer " . $supabaseKey,
+                    "Content-Type: application/json"
+                ),
+                CURLOPT_POSTFIELDS => json_encode(
+                    array("expiresIn" => 3600)
+                ),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 30
+            ));
 
-    //Converte a resposta do Supabase
-    $dadosAssinatura = json_decode($respostaSupabase, true);
+            $respostaSupabase = curl_exec($curl);
+            $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $erroCurl = curl_error($curl);
 
-    //Verifica se a URL foi criada
-    if($codigoHTTP >= 200 && $codigoHTTP < 300 && isset($dadosAssinatura["signedURL"])){
-        $urlArquivo = $dadosAssinatura["signedURL"];
-
-        //Se o endereço foi relativo, acrescenta a URL do projeto
-        if(strpos($urlArquivo, "http") !== 0){
-            $urlArquivo = rtrim($supabaseUrl, "/")
-                . "/storage/v1" . $urlArquivo;
+            curl_close($curl);
+        } else {
+            $erroCurl = "Não foi possível iniciar o cURL para gerar a URL temporária.";
         }
 
-        //Guarda os dados do anexo pelo ID do servico
-        $anexoPorServico[$anexo["id_servico"]][] = array(
-            "nome_arquivo" => $anexo["nome_arquivo"],
-            "url" => $urlArquivo
-        );
+        // Verifica se o Supabase retornou uma resposta válida
+        $dadosAssinatura = is_string($respostaSupabase)
+            ? json_decode($respostaSupabase, true)
+            : null;
+
+        if (
+            $codigoHTTP >= 200 &&
+            $codigoHTTP < 300 &&
+            is_array($dadosAssinatura) &&
+            isset($dadosAssinatura["signedURL"])
+        ) {
+            $urlArquivo = $dadosAssinatura["signedURL"];
+
+            // Se o endereço for relativo, acrescenta a URL do projeto
+            if (strpos($urlArquivo, "http") !== 0) {
+                $urlArquivo = rtrim($supabaseUrl, "/")
+                    . "/storage/v1" . $urlArquivo;
+            }
+
+            // Guarda o anexo pelo ID do serviço
+            $anexoPorServico[$anexo["id_servico"]][] = array(
+                "nome_arquivo" => $anexo["nome_arquivo"],
+                "url" => $urlArquivo
+            );
+        } else {
+            // Registra detalhes para ajudar a identificar o problema
+            error_log(
+                "Falha ao gerar URL temporária do Supabase."
+                . " | HTTP: " . $codigoHTTP
+                . " | cURL: " . $erroCurl
+                . " | Resposta: " . (
+                    is_string($respostaSupabase)
+                    ? $respostaSupabase
+                    : ""
+                )
+                . " | Caminho: " . $anexo["caminho_arquivo"]
+            );
+        }
     }
 }
 
-//FIM DO CÓDIGO PHP
+// FIM DO CÓDIGO PHP
 ?>
+
 
 <!DOCTYPE html>
 <html lang="pt-BR">
