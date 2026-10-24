@@ -255,28 +255,40 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
 
             curl_setopt_array($curl, array(
                 CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => array(
+                CURLOPT_HTTPHEADER => array(
                     "apikey: " . $supabaseKey,
                     "Authorization: Bearer " . $supabaseKey,
                     "Content-Type: " . $arquivo["tipo"],
                     "x-upsert: false"
                 ),
+                CURLOPT_POSTFIELDS => $conteudoArquivo,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_CONNECTTIMEOUT => 15,
                 CURLOPT_TIMEOUT => 120
             ));
 
+            /**/
             $respostaSupabase = curl_exec($curl);
             $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             $erroCurl = curl_error($curl);
 
-            curl_close($curl);
-
+            //Verifica se o evento funcionou.
             $uploadFuncionou = (
                 $respostaSupabase !== false &&
                 $codigoHTTP >= 200 &&
                 $codigoHTTP < 300
             );
+
+            if(!$uploadFuncionou){
+                error_log(
+                    "Erro no upload Supabase. HTTP: " . $codigoHTTP .
+                    " | cURL: " . $erroCurl .
+                    " | Resposta: " . $respostaSupabase
+                );
+            }
+
+            curl_close($curl);
+            /**/
         }
 
         //Se o envio falhar, interrompe o processo
@@ -456,7 +468,7 @@ while($anexo = pg_fetch_assoc($resultadoAnexos)){
         CURLOPT_HTTPHEADER => array(
             "apikey: " . $supabaseKey,
             "Authorization: Bearer " . $supabaseKey,
-            "Content-Type: application/join"
+            "Content-Type: application/json"
         ),
         CURLOPT_POSTFIELDS => json_encode(
             array("expiresIn" => 3600)
