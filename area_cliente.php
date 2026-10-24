@@ -435,7 +435,7 @@ $resultadoAnexos = pg_query_params(
 );
 
 //Verifica se a busca dos anexos funcionou
-if(!|$resultadoAnexos){
+if(!$resultadoAnexos){
     die("Erro ao buscar os anexos dos serviços.");
 }
 
