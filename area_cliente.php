@@ -34,6 +34,10 @@ if(!$conexao) {
     die("Erro ao conectar ao banco de dados.");
 }
 
+//Conexão com o Supabase - site para guardar os arquivos das solicitações de serviços.
+$supabaseUrl = getenv("SUPABASE_URL");
+$supabaseKey = getenv("SUPABASE_SERVICE_ROLE_KEY");
+
 //Pega o usuário que está logado.
 $usuarioLogado = $_SESSION["email"];
 
@@ -127,9 +131,83 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["salvar"]) ) {
 //Verifica se o formulário de novo serviço foi enviado
 if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
     //Pega a descrição digitada pelo usuário
-    $descricao = $_POST["descricao"];
+    //$descricao = $_POST["descricao"];
+    $descricao = trim($_POST["descricao"] ?? "");
     //O novo serviço começa com o status SOLICITADO
     $status = "SOLICITADO";
+
+    //Verifica se a descrição foi preenchida
+    if($descricao == ""){
+        die("Digite a descrição do serviço.");
+    }
+
+    //Verifica a configuração do Supabase
+    if(!$supabaseUrl || !$supabaseKey){
+        die("Erro: configuração do Supabase não encontrada.");
+    }
+
+    //Prepara a lista de arquivos enviados.
+    $arquivos = array();
+
+    /*Aparentemente é um comadno IF grande, mas pelo visto
+    é pra verificar ou processar os arquivos que foram
+    anexados.*/
+    if(isset($_FILES["anexos"])){
+        $totalArquivos = count($_FILES["anexos"]["name"]);
+
+        //Limita a quantidade de arquivos por solicitação.
+        if($totalArquivos > 5){
+            die("Você pode enviar no máximo 5 arquivos por serviço.");
+        }
+
+        //Verifica cada arquivo antes de enviar
+        for($i = 0;$i < $totalArquivos; $i++){
+            //Ignora se o cliente não selecionou um arquivo
+            if($_FILES["anexos"]["error"][$i] == UPLOAD_ERR_NO_FILE){
+                continue;
+            }
+
+            //Verifica se houve erro no envio
+            if($_FILES["anexos"]["error"][$i] != UPLOAD_ERR_OK){
+                die("Erro ao receber um dos arquivos.");
+            }
+
+            $arquivoTemporario = $_FILES["anexos"]["tmp_name"][$i];
+            $nomeOriginal = basename($_FILES["anexos"]["name"][$i]);
+            $tamanho = $_FILES["anexos"]["size"][$i];
+
+            //Limita cada arquivo a 10 MB.
+            if($tamanho <= 0 || $tamanho > 10 * 1024 * 1024){
+                die("Cada barquivo deve ter no máximo 10 MB.");
+            }
+
+            //Verifica o tipo real do arquivo.
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $tipoArquivo = finfo_file($finfo, $arquivoTemporario);
+            $finfo_close($finfo);
+
+            //Aceita somente os tipos abaixo
+            $tiposPermitidos = array(
+                "image/jpeg" => "jpg",
+                "image/png" => "png",
+                "image/webp" => "webp",
+                "application/pdf" => "pdf"
+            );
+
+            if(!isset($tiposPermitidos[$tipoArquivo])){
+                die("Tipo de arquivo não permitido. Envie imagem JPG, PNG, WebP ou PDF.");
+            }
+
+            //Guarda os dados do arquivo validado
+            $arquivos[] = array(
+                "temporario" => $arquivoTemporario,
+                "nome_original" => $nomeOriginal,
+                "tamanho" => $tamanho,
+                "tipo" => $tipoArquivo,
+                "extensao" => $tiposPermitidos[$tipoArquivo]
+            );
+        }
+    }
 
     /*Inseri o serviço no banco de dados
     id_usuario recebe o ID do usuário logado
@@ -138,21 +216,141 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["solicitar_servico"])) {
     */
     $resultado = pg_query_params(
         $conexao,
-        "INSERT INTO servicos (descricao, status, id_usuario) VALUES ($1, $2, $3)",
+        "INSERT INTO servicos (descricao, status, id_usuario) VALUES ($1, $2, $3) RETURNING id_servicos",
         array($descricao, $status, $idUsuario)
     );
 
+    if(!$resultado){
+        die("Erro ao cadastrar o serviço no banco de dados.");
+    }
+
+    $dadosServico = pg_fetch_assoc($resultado);
+    $idServico = $dadosServico["id_servicos"];
+
+    //Guarda os caminhos dos arquivos enviados
+    $arquivosEnviados = array();
+
+    //Envia cada arquivo apra o Supabase
+    foreach($arquivos as $arquivo){
+        //Cria um nome único para evitar nomes repetidos
+        $nomeArmazenado = bin2hex(random_bytes(16))
+            . "." .$arquivo["extensao"];
+
+        //Organiza os arquivos por usuário e serviço
+        $caminhoArquivo = $idUsuario . "/"
+            . $idServico . "/" . $nomeArmazenado;
+
+        $urlUpload = rtrim($supabaseUrl, "/")
+            . "/storage/v1/object/anexo-servicos/"
+            . $caminhoArquivo;
+
+        //Lê o conteúdo do arquivo temporário
+        $conteudoArquivo = file_get_contents($arquivo["temporario"]);
+
+        if($conteudoArquivo === false){
+            $uploadFuncionou = false;
+        }else{
+            //Envia o arquivo ao SUpabase usando cURL
+            $curl = curl_init($urlUpload);
+
+            curl_setopt_array($curl, array(
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => array(
+                    "apikey: " . $supabaseKey,
+                    "Authorization: Bearer " . $supabaseKey,
+                    "Content-Type: " . $arquivo["tipo"],
+                    "x-upsert: false"
+                ),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 120
+            ));
+
+            $respostaSupabase = curl_exec($curl);
+            $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $erroCurl = curl_error($curl);
+
+            curl_close($curl);
+
+            $uploadFuncionou = (
+                $respostaSupabase !== false &&
+                $codigoHTTP >= 200 &&
+                $codigoHTTP < 300
+            );
+        }
+
+        //Se o envio falhar, interrompe o processo
+        if(!$uploadFuncionou){
+            //Tenta apagar os arquivos já que foram enviados
+            foreach($arquivosEnviados as $caminhoAnterior){
+                $urlExcluir = rtrim($supabaseUrl, "/")
+                    . "/storage/v1/object/anexo-servicos/"
+                    . $caminhoAnterior;
+                
+                    $curlExcluir = curl_init($urlExcluir);
+
+                    curl_setopt_array($curlExcluir, array(
+                        CURLOPT_CUSTOMREQUEST => "DELETE",
+                        CURLOPT_HTTPHEADER => array(
+                            "apikey: " . $supabaseKey,
+                            "Authorization: Bearer " . $supabaseKey
+                        ),
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_TIMEOUT => 30
+                    ));
+
+                    curl_exec($curlExcluir);
+                    curl_close($curlExcluir);
+            }
+
+            //Remove o serviço criado, pois o envio falho
+            pg_query_params(
+                $conexao,
+                "DELETE FROM servicos WHERE id_servicos = $1 AND id_usuario = $2",
+                array($idServico, $idUsuario)
+            );
+
+            error_log(
+                "Falha no upload Supabase. HTTP: "
+                . ($codigoHTTP ?? 0)
+                . ". cURL: "
+                . ($erroCurl ?? "")
+            );
+
+            die("Não foi possível enviar um dos arquivos. Verifique o arquivo e tente novamente.");   
+        }
+
+        //Guarda o caminho do arquivo para o banco de dados
+        $arquivosEnviados[] = $caminhoArquivo;
+
+        //Registra o anexo no Neon
+        $resultadoAnexo = pg_query_params(
+            $conexao,
+            "INSERT INTO anexos_servicos (id_servico, nome_arquivo, caminho_arquivo) VALUES ($1, $2, $3)",
+            array($idServico, $arquivo["nome_original"], $caminhoArquivo)
+        );
+
+        if(!$resultadoAnexo){
+            error_log("Falha ao registrar o anexo no Neon para o serviço " . $idServico);
+            die("O arquivo foi enviado, mas ocorreu um erro ao registrar o anexo no banco de dados. Entre em contato com o administrador.");
+        }
+    }
+
+    //Serviço e anexos processados
+    header("Location: area_cliente.php");
+    exit;
+
     //Verifica se o cadastro funcionou
-    if($resultado) {
+    //if($resultado) {
         /*Volta para a página
         Isso faz com que oformulário desapareça
         e a tabela de serviços seja mostrada novamente
         */
-        header("Location: area_cliente.php");
+        /*header("Location: area_cliente.php");
         exit;
     }else{
         echo "<p>Erro ao solicitar o serviço.</p>";
-    }
+    }*/
 }
 
 //Cancelar Serviço
@@ -221,6 +419,78 @@ if(!$resultadoServicos){
 /*$nome = $dadosUsuario["nome"];
 $email = $dadosUsuario["email"];
 $senha = $dadosUsuario["senha"];*/
+
+//Busca os anexos dos serviços do usuário
+$resultadoAnexos = pg_query_params(
+    $conexao,
+    "SELECT anexos_servicos.id_servico,
+            anexos_servicos.nome_arquivo,
+            anexos_servicos.caminho_arquivo
+    FROM anexos_servicos
+    INNER JOIN servicos
+        ON anexos_servicos.id_servico = servicos.id_servicos
+    WHERE servicos.id_usuario = $1
+    ORDER BY anexos_servicos.id_anexo",
+    array($idUsuario)
+);
+
+//Verifica se a busca dos anexos funcionou
+if(!|$resultadoAnexos){
+    die("Erro ao buscar os anexos dos serviços.");
+}
+
+//Guarda os anexos separados pelo ID do serviço
+$anexoPorServico = array();
+
+while($anexo = pg_fetch_assoc($resultadoAnexos)){
+    //Cria o endereço para solicitar uma URL temporária
+    $urlAssinatura = rtrim($supabaseUrl, "/")
+        . "/storage/v1/object/sign/anexo-servicos/"
+        . $anexo["caminho_arquivo"];
+    
+    //Solicita uma URL válida por uma hora
+    $curl = curl_init($urlAssinatura);
+
+    curl_setopt_array($curl, array(
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => array(
+            "apikey: " . $supabaseKey,
+            "Authorization: Bearer " . $supabaseKey,
+            "Content-Type: application/join"
+        ),
+        CURLOPT_POSTFIELDS => json_encode(
+            array("expiresIn" => 3600)
+        ),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 30
+    ));
+
+    $respostaSupabase = curl_exec($curl);
+    $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+    curl_close($curl);
+
+    //Converte a resposta do Supabase
+    $dadosAssinatura = json_decode($respostaSupabase, true);
+
+    //Verifica se a URL foi criada
+    if($codigoHTTP >= 200 && $codigoHTTP < 300 && isset($dadosAssinatura["signedURL"])){
+        $urlArquivo = $dadosAssinatura["signedURL"];
+
+        //Se o endereço foi relativo, acrescenta a URL do projeto
+        if(strpos($urlArquivo, "http") !== 0){
+            $urlArquivo = rtrim($supabaseUrl, "/")
+                . "/storage/v1" . $urlArquivo;
+        }
+
+        //Guarda os dados do anexo pelo ID do servico
+        $anexoPorServico[$anexo["id_servico"]][] = array(
+            "nome_arquivo" => $anexo["nome_arquivo"],
+            "url" => $urlArquivo
+        );
+    }
+}
 
 //FIM DO CÓDIGO PHP
 ?>
@@ -345,14 +615,21 @@ $senha = $dadosUsuario["senha"];*/
             <?php if(isset($_GET["novo_servico"])): ?>
                 <div>
                     <h2>Solicitar Novo Serviço</h2>
-                    <form method="post">
+                    <form method="post" enctype="multipart/form-data">
                         <!--Descrição do Serviço-->
                         <div class="input-group">
                             <label for="descricao">Descrição do Serviço</label>
-                            <textarea name="descricao" id="descricao" maxlenght="200" rows="5" placeholder="Digite a descrição" required></textarea>
+                            <textarea name="descricao" id="descricao" maxlength="200" rows="5" placeholder="Digite a descrição" required></textarea>
                         </div>
+                        <!--PARTE PARA ANEXAR Imagens ou PDFs-->
+                        <div class="input-group">
+                            <label for="anexos">Anexar imagens ou PDFs:</label>
+                            <input type="file" name="anexos[]" id="anexos" accept="image/jpeg,image/png,image/webp,application/pdf" multiple>
+                        </div>
+
                         <!--BOTÃO SOLICITAR-->
                         <button type="submit" name="solicitar_servico" value="1">SOLICITAR SERVIÇO</button>
+                        
                         <!--Botão CANCELAR SOLICITAÇÃO-->
                         <a href="area_cliente.php">
                             <button type="button">CANCELAR</button>
@@ -370,6 +647,7 @@ $senha = $dadosUsuario["senha"];*/
                         <tr>
                             <th>Descrição</th>
                             <th>Status</th>
+                            <th>Anexos</th>
                             <th>Ação</th>
                         </tr>
 
@@ -392,6 +670,28 @@ $senha = $dadosUsuario["senha"];*/
                                             $servico["status"]
                                         );
                                         ?>
+                                    </td>
+
+                                    <!--ANEXOS DOS SERVIÇOS-->
+                                    <td>
+                                        <?php
+                                        //Verifica se o serviço possui anexos
+                                        if(isset($anexoPorServico[$servico["id_servicos"]])):
+                                            //Exibe cada anexo do serviço
+                                            foreach($anexoPorServico[$servico["id_servicos"]] as $anexo):
+                                        ?>
+                                            <a href="<?php echo htmlspecialchars($anexo["url"], ENT_QUOTES, "UTF-8");?>"
+                                                target="_blank"
+                                                rel="noopener noreferrer">
+                                                <?php echo htmlspecialchars($anexo["nome_arquivo"], ENT_QUOTES, "UTF-8");?>
+                                            </a>
+                                            <br>
+                                        <?php
+                                            endforeach;
+                                        else:
+                                        ?>
+                                            Nenhum anexo.
+                                        <?php endif; ?>
                                     </td>
 
                                     <!--Botão cancelar-->
@@ -429,7 +729,7 @@ $senha = $dadosUsuario["senha"];*/
                             nenhum serviço.
                             -->
                             <tr>
-                                <td colspan="3">
+                                <td colspan="4">
                                     Nenhum serviço solicitado.
                                 </td>
                             </tr>
