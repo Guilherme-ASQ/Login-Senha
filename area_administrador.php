@@ -31,6 +31,121 @@
         die("Erro ao conectar ao Banco de Dados.");
     }
 
+    // CONFIGURAÇÃO DO SUPABASE STORAGE
+    $supabaseUrl = rtrim(getenv("SUPABASE_URL") ?: "", "/");
+    $supabaseKey = getenv("SUPABASE_SERVICE_ROLE_KEY") ?: "";
+    $nomeBucket = "anexo-servicos";
+
+    // BUSCA OS ANEXOS E GERA LINKS PARA ABRIR OS ARQUIVOS
+    function buscarAnexosServico($conexao, $idServico, $supabaseUrl, $supabaseKey, $nomeBucket) {
+
+        $anexos = array();
+
+        // Busca os arquivos relacionados ao serviço no Neon.
+        $resultadoAnexos = pg_query_params(
+            $conexao,
+            "SELECT nome_arquivo, caminho_arquivo
+            FROM anexos_servicos
+            WHERE id_servico = $1
+            ORDER BY id_anexo ASC",
+            array($idServico)
+        );
+
+        if (!$resultadoAnexos) {
+            error_log("Erro ao buscar anexos do serviço " . $idServico);
+            return $anexos;
+        }
+
+        while ($anexo = pg_fetch_assoc($resultadoAnexos)) {
+
+            // Converte cada parte do caminho para o formato adequado de URL.
+            $partesCaminho = explode("/", $anexo["caminho_arquivo"]);
+            $partesCaminho = array_map("rawurlencode", $partesCaminho);
+            $caminhoCodificado = implode("/", $partesCaminho);
+
+            // Monta a URL para solicitar um link temporário.
+            $urlAssinatura = $supabaseUrl
+                . "/storage/v1/object/sign/"
+                . rawurlencode($nomeBucket)
+                . "/"
+                . $caminhoCodificado;
+
+            $curl = curl_init($urlAssinatura);
+
+            if ($curl === false) {
+                error_log("Não foi possível iniciar o cURL para gerar o link.");
+                continue;
+            }
+
+            curl_setopt_array($curl, array(
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => array(
+                    "apikey: " . $supabaseKey,
+                    "Authorization: Bearer " . $supabaseKey,
+                    "Content-Type: application/json"
+                ),
+                CURLOPT_POSTFIELDS => json_encode(
+                    array("expiresIn" => 3600)
+                ),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 30
+            ));
+
+            $resposta = curl_exec($curl);
+            $codigoHTTP = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $erroCurl = curl_error($curl);
+
+            curl_close($curl);
+
+            // Verifica se o Supabase gerou o link.
+            if ($resposta === false || $codigoHTTP < 200 || $codigoHTTP >= 300) {
+                error_log(
+                    "Erro ao gerar link do anexo. HTTP: " . $codigoHTTP
+                    . " | cURL: " . $erroCurl
+                    . " | Resposta: " . (
+                        is_string($resposta) ? $resposta : ""
+                    )
+                );
+                continue;
+            }
+
+            $dadosLink = json_decode($resposta, true);
+
+            if (!isset($dadosLink["signedURL"])) {
+                error_log("O Supabase não retornou signedURL.");
+                continue;
+            }
+
+            $linkAssinado = $dadosLink["signedURL"];
+
+            // Transforma o caminho retornado em uma URL completa.
+            if (strpos($linkAssinado, "https://") === 0 ||
+                strpos($linkAssinado, "http://") === 0) {
+
+                $urlArquivo = $linkAssinado;
+
+            } elseif (strpos($linkAssinado, "/storage/v1/") === 0) {
+
+                $urlArquivo = $supabaseUrl . $linkAssinado;
+
+            } else {
+
+                $urlArquivo = $supabaseUrl
+                    . "/storage/v1"
+                    . (strpos($linkAssinado, "/") === 0 ? "" : "/")
+                    . $linkAssinado;
+            }
+
+            $anexos[] = array(
+                "nome_arquivo" => $anexo["nome_arquivo"],
+                "url" => $urlArquivo
+            );
+        }
+
+        return $anexos;
+    }
+
     //PEGA O USUÁRIO QUE ESTÁ LOGADO
     $usuarioLogado = $_SESSION["email"];
 
@@ -343,6 +458,46 @@
                                         <strong>Solicitação:</strong><br>
                                         <?php echo htmlspecialchars($servico["solicitacao"]); ?>
 
+                                        <!--ANEXOS dos arquivos-->
+                                        <br><br>
+
+                                        <strong>Arquivos anexados:</strong><br>
+
+                                        <?php
+                                        $anexosServico = buscarAnexosServico(
+                                            $conexao,
+                                            $servico["id_servico"],
+                                            $supabaseUrl,
+                                            $supabaseKey,
+                                            $nomeBucket
+                                        );
+                                        ?>
+
+                                        <?php if (count($anexosServico) > 0): ?>
+
+                                            <?php foreach ($anexosServico as $anexo): ?>
+
+                                                <a
+                                                    href="<?php echo htmlspecialchars($anexo["url"], ENT_QUOTES, "UTF-8"); ?>"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <?php echo htmlspecialchars($anexo["nome_arquivo"], ENT_QUOTES, "UTF-8"); ?>
+                                                </a>
+
+                                                <br>
+
+                                            <?php endforeach; ?>
+
+                                        <?php else: ?>
+
+                                            Nenhum arquivo anexado.
+
+                                        <?php endif; ?>
+
+                                        <br><br>
+                                        <!---->
+
                                         <!-- Botão: SOLICITADA para EM_ANALISE -->
                                         <form method="post">
                                             <input type="hidden" name="id_servico" value="<?php echo (int)$servico["id_servico"]; ?>">
@@ -393,6 +548,46 @@
 
                                         <strong>Solicitação:</strong><br>
                                         <?php echo htmlspecialchars($servico["solicitacao"]); ?>
+
+                                        <!--ANEXOS dos serviços-->
+                                        <br><br>
+
+                                        <strong>Arquivos anexados:</strong><br>
+
+                                        <?php
+                                        $anexosServico = buscarAnexosServico(
+                                            $conexao,
+                                            $servico["id_servico"],
+                                            $supabaseUrl,
+                                            $supabaseKey,
+                                            $nomeBucket
+                                        );
+                                        ?>
+
+                                        <?php if (count($anexosServico) > 0): ?>
+
+                                            <?php foreach ($anexosServico as $anexo): ?>
+
+                                                <a
+                                                    href="<?php echo htmlspecialchars($anexo["url"], ENT_QUOTES, "UTF-8"); ?>"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <?php echo htmlspecialchars($anexo["nome_arquivo"], ENT_QUOTES, "UTF-8"); ?>
+                                                </a>
+
+                                                <br>
+
+                                            <?php endforeach; ?>
+
+                                        <?php else: ?>
+
+                                            Nenhum arquivo anexado.
+
+                                        <?php endif; ?>
+
+                                        <br><br>
+                                        <!---->
 
                                         <!--Botão: EM_ANALISE para CONCLUIDO-->
                                         <form method="post">
